@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DisputeGuard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <main class="max-w-4xl mx-auto p-6">
+    <h1 class="text-3xl font-bold">DisputeGuard</h1>
+    <p class="mt-1 text-sm">
+      Database: {{ "connected" if db_ok else "NOT connected" }}
+    </p>
+
+    {% if error %}
+      <div class="mt-4 p-3 bg-red-100 text-red-800 rounded">{{ error }}</div>
+    {% endif %}
+
+    <h2 class="mt-6 text-xl font-semibold">Disputes ({{ disputes|length }})</h2>
+    <table class="mt-2 w-full bg-white rounded shadow text-sm">
+      <thead class="bg-gray-100 text-left">
+        <tr>
+          <th class="p-2">Dispute ID</th><th class="p-2">Reason</th>
+          <th class="p-2">Status</th><th class="p-2">Amount</th><th class="p-2">Opened</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in disputes %}
+        <tr class="border-t">
+          <td class="p-2 font-mono">{{ d.dispute_id }}</td>
+          <td class="p-2">{{ d.reason }}</td>
+          <td class="p-2">{{ d.status }}</td>
+          <td class="p-2">
+            {% if d.dispute_amount %}{{ d.dispute_amount.value }} {{ d.dispute_amount.currency_code }}{% endif %}
+          </td>
+          <td class="p-2">{{ d.create_time }}</td>
+        </tr>
+        {% else %}
+        <tr><td class="p-2" colspan="5">No disputes found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

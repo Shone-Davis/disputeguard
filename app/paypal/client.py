@@ -1,0 +1,83 @@
+import logging
+import os
+import time
+
+import requests
+
+log = logging.getLogger(__name__)
+
+
+class PayPalError(Exception):
+    def __init__(self, status, message, debug_id=None):
+        super().__init__(f"PayPal {status}: {message} (debug_id={debug_id})")
+        self.status = status
+        self.debug_id = debug_id
+
+
+class PayPalClient:
+    def __init__(self, client_id=None, client_secret=None, base_url=None):
+        self.client_id = client_id or os.environ["PAYPAL_CLIENT_ID"]
+        self.client_secret = client_secret or os.environ["PAYPAL_CLIENT_SECRET"]
+        self.base_url = base_url or os.environ.get(
+            "PAYPAL_BASE_URL", "https://api-m.sandbox.paypal.com"
+        )
+        self._token = None
+        self._token_expires_at = 0
+
+    # ---- token -------------------------------------------------------
+
+    def _get_token(self):
+        if self._token and time.time() < self._token_expires_at:
+            return self._token
+        r = requests.post(
+            f"{self.base_url}/v1/oauth2/token",
+            auth=(self.client_id, self.client_secret),
+            data={"grant_type": "client_credentials"},
+            timeout=30,
+        )
+        if r.status_code != 200:
+            raise self._error(r)
+        body = r.json()
+        self._token = body["access_token"]
+        # refresh 5 minutes before PayPal says it expires
+        self._token_expires_at = time.time() + body.get("expires_in", 3600) - 300
+        return self._token
+
+    # ---- every API call goes through here ----------------------------
+
+    def _request(self, method, path, headers=None, **kwargs):
+        for attempt in (1, 2):
+            h = {"Authorization": f"Bearer {self._get_token()}"}
+            if headers:
+                h.update(headers)
+            r = requests.request(
+                method, f"{self.base_url}{path}", headers=h, timeout=30, **kwargs
+            )
+            if r.status_code == 401 and attempt == 1:
+                self._token = None  # force a fresh token, then retry once
+                continue
+            if r.status_code >= 400:
+                raise self._error(r)
+            return r.json() if r.content else {}
+
+    @staticmethod
+    def _error(r):
+        try:
+            body = r.json()
+        except ValueError:
+            body = {}
+        debug_id = body.get("debug_id") or r.headers.get("Paypal-Debug-Id")
+        msg = body.get("message") or body.get("error_description") or r.text[:200]
+        log.error("PayPal error %s: %s (debug_id=%s)", r.status_code, msg, debug_id)
+        return PayPalError(r.status_code, msg, debug_id)
+
+    # ---- disputes ----------------------------------------------------
+
+    def list_disputes(self, page_size=10):
+        data = self._request(
+            "GET", "/v1/customer/disputes", params={"page_size": page_size}
+        )
+        return data.get("items", [])
+
+    def get_dispute(self, dispute_id):
+        return self._request("GET", f"/v1/customer/disputes/{dispute_id}")
