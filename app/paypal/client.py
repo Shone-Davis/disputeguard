@@ -24,7 +24,7 @@ class PayPalClient:
         self._token = None
         self._token_expires_at = 0
 
-    # ---- token -------------------------------------------------------
+    # token
 
     def _get_token(self):
         if self._token and time.time() < self._token_expires_at:
@@ -43,7 +43,7 @@ class PayPalClient:
         self._token_expires_at = time.time() + body.get("expires_in", 3600) - 300
         return self._token
 
-    # ---- every API call goes through here ----------------------------
+    #  every API call goes through here
 
     def _request(self, method, path, headers=None, **kwargs):
         for attempt in (1, 2):
@@ -67,11 +67,13 @@ class PayPalClient:
         except ValueError:
             body = {}
         debug_id = body.get("debug_id") or r.headers.get("Paypal-Debug-Id")
-        msg = body.get("message") or body.get("error_description") or r.text[:200]
-        log.error("PayPal error %s: %s (debug_id=%s)", r.status_code, msg, debug_id)
+        msg = body.get("message") or body.get(
+            "error_description") or r.text[:200]
+        log.error("PayPal error %s: %s (debug_id=%s)",
+                  r.status_code, msg, debug_id)
         return PayPalError(r.status_code, msg, debug_id)
 
-    # ---- disputes ----------------------------------------------------
+    # disputes
 
     def list_disputes(self, page_size=10):
         data = self._request(
