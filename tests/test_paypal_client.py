@@ -28,7 +28,7 @@ def count_calls(url):
     return sum(1 for c in responses.calls if c.request.url.startswith(url))
 
 
-# T1: token is cached ---------------------------------------------------
+# T1: token is cached
 
 @responses.activate
 def test_t1_two_calls_reuse_one_token():
@@ -43,8 +43,7 @@ def test_t1_two_calls_reuse_one_token():
     assert count_calls(DISPUTES_URL) == 2
 
 
-# T2: expired token or 401 -> new token, retry once ---------------------
-
+# T2: expired token or 401 -> new token, retry once
 @responses.activate
 def test_t2_expired_token_gets_refreshed():
     add_token("tok-1")
@@ -66,7 +65,8 @@ def test_t2_401_refreshes_and_retries_once():
     add_token("tok-1")
     add_token("tok-2")
     # first disputes call is rejected, second succeeds
-    responses.add(responses.GET, DISPUTES_URL, json={"message": "expired"}, status=401)
+    responses.add(responses.GET, DISPUTES_URL, json={
+                  "message": "expired"}, status=401)
     responses.add(
         responses.GET,
         DISPUTES_URL,
@@ -85,7 +85,8 @@ def test_t2_401_refreshes_and_retries_once():
 def test_t2_401_twice_gives_up_instead_of_looping():
     add_token("tok-1")
     add_token("tok-2")
-    responses.add(responses.GET, DISPUTES_URL, json={"message": "nope"}, status=401)
+    responses.add(responses.GET, DISPUTES_URL, json={
+                  "message": "nope"}, status=401)
 
     with pytest.raises(PayPalError) as exc:
         make_client().list_disputes()
@@ -94,7 +95,7 @@ def test_t2_401_twice_gives_up_instead_of_looping():
     assert count_calls(DISPUTES_URL) == 2  # original + exactly one retry
 
 
-# T3: 4xx error carries debug_id and is logged --------------------------
+# T3: 4xx error carries debug_id and is logged
 
 @responses.activate
 def test_t3_4xx_raises_with_debug_id_and_logs(caplog):
@@ -102,7 +103,8 @@ def test_t3_4xx_raises_with_debug_id_and_logs(caplog):
     responses.add(
         responses.GET,
         DISPUTES_URL,
-        json={"name": "INVALID_REQUEST", "message": "Bad request", "debug_id": "dbg123"},
+        json={"name": "INVALID_REQUEST",
+              "message": "Bad request", "debug_id": "dbg123"},
         status=400,
     )
 
