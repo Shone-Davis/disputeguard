@@ -26,6 +26,9 @@ def create_app():
     from app.routes.main import bp
     app.register_blueprint(bp)
 
+    from app.paypal.webhooks import bp as webhooks_bp
+    app.register_blueprint(webhooks_bp)
+
     @app.cli.command("sync")
     def sync_cmd():
         """Pull every dispute from PayPal and save it."""

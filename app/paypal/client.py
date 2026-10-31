@@ -83,3 +83,17 @@ class PayPalClient:
 
     def get_dispute(self, dispute_id):
         return self._request("GET", f"/v1/customer/disputes/{dispute_id}")
+
+    def verify_webhook_signature(self, sig, raw_body, webhook_id):
+        """Ask PayPal whether this webhook really came from PayPal."""
+        import json
+        fields = {**sig, "webhook_id": webhook_id}
+        # insert the event body exactly as PayPal sent it; re encoding it can break the check
+        body = json.dumps(fields)[:-1] + ',"webhook_event":' + raw_body + "}"
+        result = self._request(
+            "POST",
+            "/v1/notifications/verify-webhook-signature",
+            headers={"Content-Type": "application/json"},
+            data=body,
+        )
+        return result.get("verification_status") == "SUCCESS"
